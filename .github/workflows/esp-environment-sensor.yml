@@ -13,13 +13,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set up ESP-IDF
-        uses: espressif/esp-idf-ci-action@v1
-        with:
-          esp_idf_version: v4.4
-          target: esp32s2
-          path: 'arduino_projects/esp-environment-sensor/esp-environment-sensor'
+      - name: Install Arduino CLI
+        uses: arduino/setup-arduino-cli@v2
 
-      # Step 3: Build ESP32 firmware
-      - name: Build Firmware
-        run: idf.py build
+      # We then install the platform, which one will be determined
+      # dynamically by the build matrix.
+      - name: Install platform
+        run: |
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32
+
+      # Finally, we compile the sketch, using the FQBN that was set
+      # in the build matrix.
+      - name: Compile Sketch
+        run: arduino-cli compile --fqbn esp32:esp32:lolin32 ./blink
