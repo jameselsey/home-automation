@@ -29,8 +29,8 @@ jobs:
       - name: Install Arduino Libraries
         run: |
           arduino-cli lib install "ArduinoJson"
-          arduino-cli lib install "Adafruit_GFX"
-          arduino-cli lib install "Adafruit_ST7735"
+          arduino-cli lib install "Adafruit GFX Library"
+          arduino-cli lib install "Adafruit ST7735 and ST7789 Library"
 
       # Finally, we compile the sketch, using the FQBN that was set
       # in the build matrix.
