@@ -33,12 +33,10 @@ jobs:
           arduino-cli lib install "Adafruit ST7735 and ST7789 Library"
 
       - name: Compile Sketch
-        run: arduino-cli compile --fqbn esp32:esp32:lolin32 ./arduino_projects/esp-environment-sensor/esp-environment-sensor
-
-  upload:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
+        run: |
+          arduino-cli compile --fqbn esp32:esp32:lolin32 ./arduino_projects/esp-environment-sensor/esp-environment-sensor
+          echo "Compiled firmware location:"
+          find ./arduino_projects/esp-environment-sensor/ -type f
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v3
@@ -52,12 +50,19 @@ jobs:
         run: |
           aws s3 cp ./arduino_projects/esp-environment-sensor/firmware.bin s3://${{ secrets.OTA_S3_BUCKET }}/firmware.bin
 
-#      - name: Create AWS IoT Job
-#          run: |
-#            JOB_ID="esp32-ota-job-${{ github.run_number }}"
-#            aws iot create-job \
-#              --job-id $JOB_ID \
-#              --targets "arn:aws:iot:your-region:your-account-id:thinggroup/your-thing-group-name" \
-#              --document-source s3://your-s3-bucket-name/ota-job-document.json \
-#              --job-executions-rollout-config '{"maximumPerMinute":5}' \
-#              --abort-config '{"criteriaList":[{"failureType":"FAILED","action":"CANCEL","thresholdPercentage":50.0,"minNumberOfExecutedThings":1}]}'
+  upload:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+
+
+
+      - name: Create AWS IoT Job
+        run: |
+          JOB_ID="esp32-ota-job-${{ github.run_number }}"
+          aws iot create-job \
+            --job-id $JOB_ID \
+            --targets "arn:aws:iot:${{ secrets.AWS_REGION }}:${{ secrets.AWS_ACCOUNT_ID }}:thinggroup/environment-sensors" \
+            --document-source s3://your-s3-bucket-name/ota-job-document.json \
+            --job-executions-rollout-config '{"maximumPerMinute":5}' \
+            --abort-config '{"criteriaList":[{"failureType":"FAILED","action":"CANCEL","thresholdPercentage":50.0,"minNumberOfExecutedThings":1}]}'
