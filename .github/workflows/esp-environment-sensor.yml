@@ -6,9 +6,8 @@ on:
       - main
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -16,8 +15,6 @@ jobs:
       - name: Install Arduino CLI
         uses: arduino/setup-arduino-cli@v2
 
-      # We then install the platform, which one will be determined
-      # dynamically by the build matrix.
       - name: Install platform
         run: |
           arduino-cli config init
@@ -25,14 +22,38 @@ jobs:
           arduino-cli core update-index
           arduino-cli core install esp32:esp32
 
-      # Step 4: Install Required Libraries
       - name: Install Arduino Libraries
         run: |
           arduino-cli lib install "ArduinoJson"
           arduino-cli lib install "Adafruit GFX Library"
           arduino-cli lib install "Adafruit ST7735 and ST7789 Library"
 
-      # Finally, we compile the sketch, using the FQBN that was set
-      # in the build matrix.
       - name: Compile Sketch
         run: arduino-cli compile --fqbn esp32:esp32:lolin32 ./arduino_projects/esp-environment-sensor/esp-environment-sensor
+
+  upload:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.ROLE_NAME }}
+          role-session-name: "github-actions-session"
+          mask-aws-account-id: true
+
+      - name: Upload Firmware
+        run: |
+          aws s3 cp ./arduino_projects/esp-environment-sensor/firmware.bin s3://${{ secrets.OTA_S3_BUCKET }}/firmware.bin
+
+#      - name: Create AWS IoT Job
+#          run: |
+#            JOB_ID="esp32-ota-job-${{ github.run_number }}"
+#            aws iot create-job \
+#              --job-id $JOB_ID \
+#              --targets "arn:aws:iot:your-region:your-account-id:thinggroup/your-thing-group-name" \
+#              --document-source s3://your-s3-bucket-name/ota-job-document.json \
+#              --job-executions-rollout-config '{"maximumPerMinute":5}' \
+#              --abort-config '{"criteriaList":[{"failureType":"FAILED","action":"CANCEL","thresholdPercentage":50.0,"minNumberOfExecutedThings":1}]}'
