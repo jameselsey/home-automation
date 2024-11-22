@@ -69,7 +69,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: firmware
-          path: ./output/esp-environment-sensor.ino.merged.bin
+          path: ./output
 
       - name: Generate IoT Job Document
         run: |
