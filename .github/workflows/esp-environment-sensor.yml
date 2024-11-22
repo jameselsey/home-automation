@@ -52,6 +52,46 @@ jobs:
           find ./ -type f -name "esp-environment-sensor.ino.merged.bin" 2>/dev/null
           ls output
 
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: firmware
+          path: ./output/esp-environment-sensor.ino.merged.bin
+          retention-days: 1
+
+
+  upload:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+
+      - name: Download firmware artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: firmware
+          path: ./output/esp-environment-sensor.ino.merged.bin
+
+      - name: Generate IoT Job Document
+        run: |
+          FIRMWARE_URL="https://${{ secrets.OTA_S3_BUCKET }}.s3.${{ secrets.AWS_REGION }}.amazonaws.com/esp-environment-sensor/esp-environment-sensor.ino.merged.bin"
+          FIRMWARE_HASH=$(sha256sum ./output/esp-environment-sensor.ino.merged.bin | awk '{print $1}')
+          cat <<EOF > ./output/ota-job-document.json
+          {
+            "operation": "otaUpdate",
+            "firmware": {
+              "url": "${FIRMWARE_URL}",
+              "version": "1.0.0",
+              "hash": "${FIRMWARE_HASH}"
+            },
+            "actions": {
+              "validate": true,
+              "applyImmediately": true,
+              "rollbackOnFailure": true
+            }
+          }
+          EOF
+
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v3
         with:
@@ -62,21 +102,15 @@ jobs:
 
       - name: Upload Firmware
         run: |
-          aws s3 cp ./output/esp-environment-sensor.ino.merged.bin s3://${{ secrets.OTA_S3_BUCKET }}/firmware.bin
-
-  upload:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-
-
+          aws s3 cp ./output/esp-environment-sensor.ino.merged.bin s3://${{ secrets.OTA_S3_BUCKET }}/esp-environment-sensor/esp-environment-sensor.ino.merged.bin
+          aws s3 cp ./output/ota-job-document.json s3://${{ secrets.OTA_S3_BUCKET }}/esp-environment-sensor/ota-job-document.json
 
       - name: Create AWS IoT Job
         run: |
           JOB_ID="esp32-ota-job-${{ github.run_number }}"
           aws iot create-job \
             --job-id $JOB_ID \
-            --targets "arn:aws:iot:${{ secrets.AWS_REGION }}:${{ secrets.AWS_ACCOUNT_ID }}:thinggroup/environment-sensors" \
-            --document-source s3://your-s3-bucket-name/ota-job-document.json \
+            --targets "arn:aws:iot:${{ secrets.AWS_REGION }}:${{ secrets.AWS_ACCOUNT_ID }}:thinggroup/${{ secrets.THING_GROUP_NAME }}" \
+            --document-source "s3://${{ secrets.OTA_S3_BUCKET }}/esp-environment-sensor/ota-job-document.json" \
             --job-executions-rollout-config '{"maximumPerMinute":5}' \
             --abort-config '{"criteriaList":[{"failureType":"FAILED","action":"CANCEL","thresholdPercentage":50.0,"minNumberOfExecutedThings":1}]}'
