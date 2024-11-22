@@ -34,7 +34,7 @@ jobs:
 
       - name: Compile Sketch
         run: |
-          arduino-cli compile --fqbn esp32:esp32:lolin32 --verbose ./arduino_projects/esp-environment-sensor/esp-environment-sensor
+          arduino-cli compile --fqbn esp32:esp32:lolin32 --verbose --output-dir output ./arduino_projects/esp-environment-sensor/esp-environment-sensor
           echo "Compiled firmware location:"
           find ./arduino_projects/esp-environment-sensor/ -type f
 
