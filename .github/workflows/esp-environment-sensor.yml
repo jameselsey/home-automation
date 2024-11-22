@@ -62,7 +62,7 @@ jobs:
 
       - name: Upload Firmware
         run: |
-          aws s3 cp ./arduino_projects/esp-environment-sensor/firmware.bin s3://${{ secrets.OTA_S3_BUCKET }}/firmware.bin
+          aws s3 cp ./output/esp-environment-sensor.ino.merged.bin s3://${{ secrets.OTA_S3_BUCKET }}/firmware.bin
 
   upload:
     runs-on: ubuntu-latest
