@@ -36,7 +36,7 @@ jobs:
         uses: arduino/compile-sketches@v1
         with:
           fqbn: "esp32:esp32:lolin32"
-          sketch-paths:
+          sketch-paths: |
             - ./arduino_projects/esp-environment-sensor/esp-environment-sensor
           verbose: true
           libraries: |
