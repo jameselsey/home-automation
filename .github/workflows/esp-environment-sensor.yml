@@ -19,36 +19,38 @@ jobs:
       - name: Install Arduino CLI
         uses: arduino/setup-arduino-cli@v2
 
-#      - name: Install platform
-#        run: |
-#          arduino-cli config init
-#          arduino-cli config add board_manager.additional_urls https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
-#          arduino-cli core update-index
-#          arduino-cli core install esp32:esp32
-#
-#      - name: Install Arduino Libraries
-#        run: |
-#          arduino-cli lib install "ArduinoJson"
-#          arduino-cli lib install "Adafruit GFX Library"
-#          arduino-cli lib install "Adafruit ST7735 and ST7789 Library"
+      - name: Install platform
+        run: |
+          arduino-cli config init
+          arduino-cli config add board_manager.additional_urls https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32
 
-      - name: Compile
-        uses: arduino/compile-sketches@v1
-        with:
-          fqbn: "esp32:esp32:lolin32"
-          sketch-paths: |
-            - ./arduino_projects/esp-environment-sensor/esp-environment-sensor
-          verbose: true
-          libraries: |
-            - name: "ArduinoJson"
-            - name: "Adafruit GFX Library"
-            - name: "Adafruit ST7735 and ST7789 Library"
+      - name: Install Arduino Libraries
+        run: |
+          arduino-cli lib install "ArduinoJson"
+          arduino-cli lib install "Adafruit GFX Library"
+          arduino-cli lib install "Adafruit ST7735 and ST7789 Library"
 
-#      - name: Compile Sketch
-#        run: |
-#          arduino-cli compile --fqbn esp32:esp32:lolin32 --verbose --output-dir output ./arduino_projects/esp-environment-sensor/esp-environment-sensor
-#          echo "Compiled firmware location:"
-#          find ./arduino_projects/esp-environment-sensor/ -type f
+#      - name: Compile
+#        uses: arduino/compile-sketches@v1
+#        with:
+#          fqbn: "esp32:esp32:lolin32"
+#          sketch-paths: |
+#            - ./arduino_projects/esp-environment-sensor/esp-environment-sensor
+#          verbose: true
+#          libraries: |
+#            - name: "ArduinoJson"
+#            - name: "Adafruit GFX Library"
+#            - name: "Adafruit ST7735 and ST7789 Library"
+
+      - name: Compile Sketch
+        run: |
+          arduino-cli compile --fqbn esp32:esp32:lolin32 --verbose --output-dir output ./arduino_projects/esp-environment-sensor/esp-environment-sensor
+          echo "Compiled firmware location:"
+          find ./arduino_projects/esp-environment-sensor/ -type f
+          find ./ -type f -name "esp-environment-sensor.ino.merged.bin" 2>/dev/null
+          ls output
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v3
