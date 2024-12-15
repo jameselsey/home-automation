@@ -1,12 +1,13 @@
 #include "Arduino.h"
 #include "DFRobotDFPlayerMini.h"
+#include "esp_sleep.h"
 
 #define DFPSerial Serial1
 
-#define DFP_VOLUME 3 // from 0 to 30
+#define DFP_VOLUME 5 // from 0 to 30
 #define DFP_RX_PIN 16  
 #define DFP_TX_PIN 17  
-#define PIR_PIN 19            // PIR sensor connected to GPIO 19
+#define PIR_PIN 2            // PIR sensor connected to GPIO 19
 
 #define PLAY_SOUND_COUNT 3
 #define PLAY_SOUND_DELAY 5000
@@ -14,70 +15,54 @@
 DFRobotDFPlayerMini myDFPlayer;
 void printDetail(uint8_t type, int value);
 
-void setup()
-{
+void playSounds() {
+  Serial.println(F("Playing sounds..."));
+  for (int i = 0; i < PLAY_SOUND_COUNT; i++) {
+    int randomSound = random(1, 9); // Random sound between 1.mp3 and 8.mp3
+    myDFPlayer.play(randomSound);
+    Serial.print(F("Playing sound: "));
+    Serial.println(randomSound);
+    delay(PLAY_SOUND_DELAY);
+  }
+  Serial.println(F("Playback complete."));
+}
+
+void setup() {
+  // Initialize serial for debugging
   Serial.begin(115200);
 
-  pinMode(PIR_PIN, INPUT);    // Set PIR sensor pin as input
+  // Configure PIR pin as input with internal pull-down
+  pinMode(PIR_PIN, INPUT_PULLDOWN);
 
-  DFPSerial.begin(9600, SERIAL_8N1, DFP_RX_PIN, DFP_TX_PIN);
-
-
-  Serial.println();
-  Serial.println(F("DFRobot DFPlayer Mini Demo"));
-  Serial.println(F("Initializing DFPlayer ... (May take 3~5 seconds)"));
-  
-  if (!myDFPlayer.begin(DFPSerial, /*isACK = */true, /*doReset = */true)) {
-    Serial.println(F("Unable to begin:"));
-    Serial.println(F("1.Please recheck the connection!"));
-    Serial.println(F("2.Please insert the SD card!"));
-    while(true){
-      delay(0);
+  // Check wakeup reason
+  if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0) {
+    Serial.println(F("Woke up from PIR motion detection!"));
+    // Initialize DFPlayer
+    DFPSerial.begin(9600, SERIAL_8N1, DFP_RX_PIN, DFP_TX_PIN);
+    if (!myDFPlayer.begin(DFPSerial)) {
+      Serial.println(F("Unable to initialize DFPlayer!"));
+      while (true); // Halt if DFPlayer fails
     }
+    myDFPlayer.volume(DFP_VOLUME);
+
+    // Play sounds
+    playSounds();
+  } else {
+    Serial.println(F("Starting fresh setup."));
   }
-  Serial.println(F("DFPlayer Mini online."));
-  
-  myDFPlayer.volume(DFP_VOLUME);
+
+  // Configure PIR pin as the wakeup source
+  esp_sleep_enable_ext0_wakeup((gpio_num_t)PIR_PIN, 1); // Wake up on HIGH signal
+
+  // Enter deep sleep
+  Serial.println(F("Entering deep sleep..."));
+  delay(100); // Small delay to ensure logs are printed
+  esp_deep_sleep_start();
 }
 
 void loop() {
-  static bool playing = false;
-  static unsigned long lastPlayTime = 0;
-  static int soundsPlayed = 0;         // Counter for the number of sounds played in the current detection
-  int motionDetected = digitalRead(PIR_PIN); // Read PIR sensor state (HIGH or LOW)
-
-  // If motion is detected and we're not already playing sounds
-  if (motionDetected == HIGH && !playing) {
-    Serial.println(F("Motion detected! Starting playback..."));
-    playing = true;                    // Start the playback sequence
-    soundsPlayed = 0;                  // Reset the sounds played counter
-    lastPlayTime = 0;                  // Reset the timer to trigger immediate playback
-  }
-
-  // If in playback mode, handle the sound playback sequence
-  if (playing) {
-    if (soundsPlayed < PLAY_SOUND_COUNT) {            // Play up to 3 sounds
-      if (lastPlayTime == 0 || millis() - lastPlayTime >= PLAY_SOUND_DELAY) { 
-        int randomSound = random(1, 9); // Random sound between 1.mp3 and 8.mp3
-        myDFPlayer.play(randomSound);
-        Serial.print(F("Playing sound: "));
-        Serial.println(randomSound);
-        lastPlayTime = millis();      // Reset the timer
-        soundsPlayed++;               // Increment the sound counter
-      }
-    } else {
-      // All 3 sounds have been played; stop playback
-      Serial.println(F("Playback complete."));
-      playing = false;                // Exit playback mode
-    }
-  }
-
-  // Debugging messages for DFPlayer Mini
-  if (myDFPlayer.available()) {
-    printDetail(myDFPlayer.readType(), myDFPlayer.read());
-  }
+  // Deep sleep mode, so loop will not execute
 }
-
 
 void printDetail(uint8_t type, int value){
   switch (type) {
