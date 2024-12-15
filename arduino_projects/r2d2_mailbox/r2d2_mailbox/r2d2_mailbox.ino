@@ -41,11 +41,9 @@ void setup()
 }
 
 void loop() {
-  static bool playing = false;         
+  static bool playing = false;
   static unsigned long lastPlayTime = 0;
   static int soundsPlayed = 0;         // Counter for the number of sounds played in the current detection
-  static int pirState = LOW;           // Current state of the PIR sensor
-  
   int motionDetected = digitalRead(PIR_PIN); // Read PIR sensor state (HIGH or LOW)
 
   // If motion is detected and we're not already playing sounds
@@ -53,13 +51,13 @@ void loop() {
     Serial.println(F("Motion detected! Starting playback..."));
     playing = true;                    // Start the playback sequence
     soundsPlayed = 0;                  // Reset the sounds played counter
-    lastPlayTime = millis();           // Reset the timer
+    lastPlayTime = 0;                  // Reset the timer to trigger immediate playback
   }
 
   // If in playback mode, handle the sound playback sequence
   if (playing) {
     if (soundsPlayed < PLAY_SOUND_COUNT) {            // Play up to 3 sounds
-      if (millis() - lastPlayTime >= PLAY_SOUND_DELAY) { // delay between sounds
+      if (lastPlayTime == 0 || millis() - lastPlayTime >= PLAY_SOUND_DELAY) { 
         int randomSound = random(1, 9); // Random sound between 1.mp3 and 8.mp3
         myDFPlayer.play(randomSound);
         Serial.print(F("Playing sound: "));
@@ -79,6 +77,7 @@ void loop() {
     printDetail(myDFPlayer.readType(), myDFPlayer.read());
   }
 }
+
 
 void printDetail(uint8_t type, int value){
   switch (type) {
