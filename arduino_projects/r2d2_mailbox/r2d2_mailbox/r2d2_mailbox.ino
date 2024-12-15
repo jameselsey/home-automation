@@ -6,6 +6,10 @@
 #define DFP_VOLUME 3 // from 0 to 30
 #define DFP_RX_PIN 16  
 #define DFP_TX_PIN 17  
+#define PIR_PIN 19            // PIR sensor connected to GPIO 19
+
+#define PLAY_SOUND_COUNT 3
+#define PLAY_SOUND_DELAY 5000
 
 DFRobotDFPlayerMini myDFPlayer;
 void printDetail(uint8_t type, int value);
@@ -13,6 +17,8 @@ void printDetail(uint8_t type, int value);
 void setup()
 {
   Serial.begin(115200);
+
+  pinMode(PIR_PIN, INPUT);    // Set PIR sensor pin as input
 
   DFPSerial.begin(9600, SERIAL_8N1, DFP_RX_PIN, DFP_TX_PIN);
 
@@ -32,20 +38,45 @@ void setup()
   Serial.println(F("DFPlayer Mini online."));
   
   myDFPlayer.volume(DFP_VOLUME);
-  myDFPlayer.play(1);
 }
 
-void loop()
-{
-  static unsigned long timer = millis();
+void loop() {
+  static bool playing = false;         
+  static unsigned long lastPlayTime = 0;
+  static int soundsPlayed = 0;         // Counter for the number of sounds played in the current detection
+  static int pirState = LOW;           // Current state of the PIR sensor
   
-  if (millis() - timer > 5000) {
-    timer = millis();
-    myDFPlayer.next();  //Play next mp3 every x seconds.
+  int motionDetected = digitalRead(PIR_PIN); // Read PIR sensor state (HIGH or LOW)
+
+  // If motion is detected and we're not already playing sounds
+  if (motionDetected == HIGH && !playing) {
+    Serial.println(F("Motion detected! Starting playback..."));
+    playing = true;                    // Start the playback sequence
+    soundsPlayed = 0;                  // Reset the sounds played counter
+    lastPlayTime = millis();           // Reset the timer
   }
-  
+
+  // If in playback mode, handle the sound playback sequence
+  if (playing) {
+    if (soundsPlayed < PLAY_SOUND_COUNT) {            // Play up to 3 sounds
+      if (millis() - lastPlayTime >= PLAY_SOUND_DELAY) { // delay between sounds
+        int randomSound = random(1, 9); // Random sound between 1.mp3 and 8.mp3
+        myDFPlayer.play(randomSound);
+        Serial.print(F("Playing sound: "));
+        Serial.println(randomSound);
+        lastPlayTime = millis();      // Reset the timer
+        soundsPlayed++;               // Increment the sound counter
+      }
+    } else {
+      // All 3 sounds have been played; stop playback
+      Serial.println(F("Playback complete."));
+      playing = false;                // Exit playback mode
+    }
+  }
+
+  // Debugging messages for DFPlayer Mini
   if (myDFPlayer.available()) {
-    printDetail(myDFPlayer.readType(), myDFPlayer.read()); //Print the detail message from DFPlayer to handle different errors and states.
+    printDetail(myDFPlayer.readType(), myDFPlayer.read());
   }
 }
 
