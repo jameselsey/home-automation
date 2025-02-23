@@ -1,0 +1,7 @@
+{
+  "thingName": "sensor1",
+  "version": 1,
+  "wifiSsid": "your wifi",
+  "wifiPassword": "your wifi",
+  "awsIotEndpoint": "your endpoint"
+}
