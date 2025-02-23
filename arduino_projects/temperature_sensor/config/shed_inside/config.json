@@ -1,0 +1,10 @@
+{
+  "thingName": "shed_inside",
+  "version": 1,
+  "wifiSsid": "your wifi name",
+  "wifiPassword": "your wifi password",
+  "mqttServer": "optiplex.local",
+  "mqttPort": 1883,
+  "mqttTopic": "home/sensors/temperature/shed_inside",
+  "mqttCommandTopic": "home/sensors/temperature/shed_inside/command"
+}
