@@ -1,0 +1,7 @@
+{
+  "thingName": "shed_big_roller_door",
+  "version": 1,
+  "wifiSsid": "Your wifi name here",
+  "wifiPassword": "wifi password here",
+  "discordWebhookUrl": "https://discordapp.com/api/webhooks/youreApiDetailsHere"
+}

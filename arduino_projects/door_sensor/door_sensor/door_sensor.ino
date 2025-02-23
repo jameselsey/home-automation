@@ -4,14 +4,6 @@
 #include <ArduinoJson.h>
 #include "WiFi.h"
 #include <HTTPClient.h>
-// #include <Adafruit_Sensor.h>
-// #include "utils.h"
-
-// Pin wiring:
-//    VCC -- 3v
-//    GND -- GND
-//    SCL -- 22
-//    SDA -- 21
 
 const int reedSwitchPin1 = 15;  // Define the digital pin connected to the reed switch
 int reedSwitch1State = 0;
@@ -28,7 +20,6 @@ Config config;
 
 void setup() {
   Serial.begin(9600);
-  
 
   pinMode(reedSwitchPin1, INPUT_PULLUP);  // Set the reed switch pin as an input with internal pull-up resistor
   reedSwitch1State = digitalRead(reedSwitchPin1); // set the initial state of the reed switch
