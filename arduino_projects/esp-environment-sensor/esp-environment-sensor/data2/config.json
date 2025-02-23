@@ -1,7 +1,0 @@
-{
-  "thingName": "sensor2",
-  "version": 1,
-  "wifiSsid": "",
-  "wifiPassword": "",
-  "awsIotEndpoint": "xyz.iot.us-east-1.amazonaws.com"
-}
