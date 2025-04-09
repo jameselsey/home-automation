@@ -1,18 +1,23 @@
 #include <WiFi.h>
-#include <HTTPClient.h>
 #include "esp_camera.h"
 #include "esp_sleep.h"
 
-// ==== Replace these with your own ====
-const char* ssid = "ssid";
-const char* password = "password";
-const char* webhook_url = "http://server.local:5001/mailbox";
+// Wi-Fi credentials
+const char* ssid = "wifi name";
+const char* password = "wifi password";
 
-// Time between photos (in seconds)
+// Server info
+String serverName = "192.168.0.13"; // Use mDNS or IP
+const int serverPort = 5001;
+String serverPath = "/mailbox";
+
+// Deep sleep setup
 #define uS_TO_S_FACTOR 1000000ULL
-#define TIME_TO_SLEEP 30 // 30 seconds
+#define TIME_TO_SLEEP 30  // in seconds
 
-// Camera pin config for AI-Thinker module
+WiFiClient client;
+
+// Camera pin config for AI-Thinker
 #define PWDN_GPIO_NUM     32
 #define RESET_GPIO_NUM    -1
 #define XCLK_GPIO_NUM      0
@@ -31,38 +36,25 @@ const char* webhook_url = "http://server.local:5001/mailbox";
 #define PCLK_GPIO_NUM     22
 
 void connectWiFi() {
-  Serial.println("Connecting to Wi-Fi...");
+  WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
 
+  Serial.print("Connecting to Wi-Fi");
   int retries = 0;
   while (WiFi.status() != WL_CONNECTED && retries < 20) {
-    delay(1000);
+    delay(500);
     Serial.print(".");
     retries++;
   }
 
+  Serial.println();
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("Wi-Fi connected!");
-    Serial.print("IP address: ");
+    Serial.println("Wi-Fi connected");
+    Serial.print("IP Address: ");
     Serial.println(WiFi.localIP());
   } else {
-    Serial.println("Wi-Fi connection failed.");
+    Serial.println("Wi-Fi connection failed");
   }
-}
-
-
-bool sendImage(camera_fb_t * fb) {
-  if (WiFi.status() != WL_CONNECTED) return false;
-
-  HTTPClient http;
-  http.begin(webhook_url);
-  http.addHeader("Content-Type", "application/octet-stream");
-
-  int httpResponseCode = http.POST(fb->buf, fb->len);
-  Serial.printf("HTTP Response: %d\n", httpResponseCode);
-  http.end();
-
-  return httpResponseCode == 200;
 }
 
 void setupCamera() {
@@ -88,50 +80,106 @@ void setupCamera() {
   config.xclk_freq_hz = 20000000;
   config.pixel_format = PIXFORMAT_JPEG;
 
-  // Set frame size + quality
-  config.frame_size = FRAMESIZE_QVGA;
-  config.jpeg_quality = 12;
-  config.fb_count = 1;
-  
+  if (psramFound()) {
+    config.frame_size = FRAMESIZE_SVGA;
+    config.jpeg_quality = 10;
+    config.fb_count = 2;
+  } else {
+    config.frame_size = FRAMESIZE_CIF;
+    config.jpeg_quality = 12;
+    config.fb_count = 1;
+  }
+
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
-    Serial.printf("Camera init failed with error 0x%x", err);
+    Serial.printf("Camera init failed: 0x%x", err);
+    delay(2000);
     ESP.restart();
   }
 }
+
+bool sendImage(camera_fb_t *fb) {
+  Serial.println("Connecting to server...");
+
+  if (!client.connect(serverName.c_str(), serverPort)) {
+    Serial.println("Connection failed");
+    return false;
+  }
+
+  Serial.println("Connection successful!");
+
+  // Send HTTP POST headers
+  client.println("POST " + serverPath + " HTTP/1.1");
+  client.println("Host: " + serverName);
+  client.println("Content-Type: application/octet-stream");
+  client.println("Content-Length: " + String(fb->len));
+  client.println();
+  
+  // Send the image data
+  client.write(fb->buf, fb->len);
+
+  // Release camera buffer
+  esp_camera_fb_return(fb);
+
+  // Read response
+  String response;
+  while (client.connected()) {
+    while (client.available()) {
+      char c = client.read();
+      response += c;
+    }
+  }
+
+  client.stop();
+  Serial.println("Server response:");
+  Serial.println(response);
+
+  return true;
+}
+
 
 void setup() {
   Serial.begin(115200);
   delay(100);
 
-  // Init camera
+  connectWiFi();
+
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi not connected. Sleeping...");
+    esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+    esp_deep_sleep_start();
+  }
+
   setupCamera();
 
-  // Take photo
-  camera_fb_t * fb = esp_camera_fb_get();
+  // Optional: turn on LED flash
+  pinMode(4, OUTPUT);
+  digitalWrite(4, HIGH);
+  delay(200); // warm-up
+  camera_fb_t *fb = esp_camera_fb_get();
+  digitalWrite(4, LOW); // turn off flash
+
   if (!fb) {
     Serial.println("Camera capture failed");
   } else {
-    // Connect to Wi-Fi and send
-    connectWiFi();
     if (sendImage(fb)) {
-      Serial.println("Image sent successfully.");
+      Serial.println("Image sent successfully");
     } else {
-      Serial.println("Image failed to send.");
+      Serial.println("Image failed to send");
     }
-
     esp_camera_fb_return(fb);
   }
 
-  // Sleep
-  Serial.println("Going to deep sleep...");
-  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+  // Cleanup
   esp_camera_deinit();
   WiFi.disconnect(true);
   WiFi.mode(WIFI_OFF);
+
+  Serial.println("Going to deep sleep...");
+  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
   esp_deep_sleep_start();
 }
 
 void loop() {
-  // never runs
+  // never used
 }
